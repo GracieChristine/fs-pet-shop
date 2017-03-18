@@ -1,55 +1,95 @@
-"use strict"
+"use strict";
 
-let http = require("http")
-let url = require("url")
-let fs = require("fs")
-let port = 8000
+const http = require("http");
+const url = require("url");
+const fs = require("fs");
 
-let server = http.createServer((req, res) => {
-  let pathName = url.parse(req.url).pathname
-  let pathArr = pathName.match(/[^/]+/g);
+const port = 8000;
 
-  fs.readFile("pets.json", "utf8", (err, data) => {
-
-    if (err) throw err;
-    else if (pathArr.length === 0) {
-      console.error(err.stack);
-      res.statusCode = 404;
-      res.setHeader("Content-Type", "text/plain");
-
-      return res.end("Internal Server Error");
+const server = http.createServer((req, res) => {
+  fs.readFile("./pets.json", "utf8", (err, data) => {
+    // console.log(req.url);
+    if (err) {
+      throw err
     }
-    else if (pathArr.length === 1 && pathArr[0] === "pets") {
-      let petArr = JSON.parse(data)
 
-      res.statusCode = 200
-      res.setHeader("Content-Type", "application/json")
-      res.end(JSON.stringify(petArr))
-    }
-    else if (pathArr[1] === 0 && pathArr[0] === "pets") {
-      let pet0 = JSON.parse(data)[0]
+    // "/pets/1"
+    let pathName = url.parse(req.url).pathname;
+    let method = req.method;
+    let body = req.body;
 
-      res.statusCode = 200
-      res.setHeader("Content-Type", "application/json")
-      res.end(JSON.stringify(pet0))
-    }
-    else if (pathArr[1] === 1 && pathArr[0] === "pets") {
-      let pet1 = JSON.parse(data)[1]
+    // console.log(req);
+    // console.log(body);
 
-      res.statusCode = 200
-      res.setHeader("Content-Type", "application/json")
-      res.end(JSON.stringify(pet1))
-    }
-    else {
-      res.statusCode = 404;
-      res.setHeader("Content-Type", "text/plain");
-      res.end("Not Found");
-    }
-  })
-})
+    // ["pets", "1"]
+    let pathArr = pathName.match(/[^/]+/g);
 
-server.listen(port, (err) => {
-  console.log("On THIS PORT NOW...", port);
+    if (method === "GET") {
+      if (!pathArr) {
+        res.statusCode = 404;
+        res.setHeader("Content-Type", "text/plain");
+        res.end("Not Found")
+      }
+      else if (pathArr[0] === "pets") {
+        if (pathArr.length === 1) {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.end(data)
+        }
+        else if (JSON.parse(data)[pathArr[1]]) {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(JSON.parse(data)[pathArr[1]]));
+        }
+        else {
+          res.statusCode = 404;
+          res.setHeader("Content-Type", "text/plain");
+          res.end("Not Found")
+        }
+      }
+      else {
+        res.statusCode = 404;
+        res.setHeader("Content-Type", "text/plain");
+        res.end("Not Found")
+      }
+    }
+    else if (method === "POST") {
+      req.on("data", (newPet) => {
+        let parsed = JSON.parse(newPet);
+
+        if (pathArr.length === 0) {
+          res.statusCode = 404;
+          res.setHeader("Content-Type", "text/plain");
+          res.end("Not Found")
+        }
+        else if (parsed.age && !isNaN(parsed.age) && parsed.kind && parsed.name) {
+          console.log(data);
+          let toWrite = (JSON.parse(data));
+
+          toWrite.push(parsed);
+          toWrite = JSON.stringify(toWrite);
+          console.log(toWrite);
+          fs.writeFile("./pets.json", toWrite, (writeErr) => {
+            if (writeErr) {
+              throw writeErr
+            }
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/json");
+            res.end(newPet);
+          })
+        }
+        else {
+          res.statusCode = 400;
+          res.setHeader("Content-Type", "text/plain");
+          res.end("Bad Request")
+        }
+      })
+    }
+  });
 });
+
+// server.listen(port, (err) => {
+//   if (err) throw err;
+// })
 
 module.exports = server;

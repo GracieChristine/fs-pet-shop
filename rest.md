@@ -90,7 +90,7 @@ module.exports = app;
 where `app` is the variable that is assigned the result from `express()`.
 
 ```shell
-$ npm test test/restfulExpressServer.test.js
+$ v
 ```
 
 ## Bonus
